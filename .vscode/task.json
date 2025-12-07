@@ -1,0 +1,25 @@
+{
+    "cmake.configureOnOpen": true,
+    "code-runner.runInTerminal": true,
+    "files.autoSave": "afterDelay",
+    "cmake.ignoreCMakeListsMissing": true,
+    "cmake.pinnedCommands": [
+        "workbench.action.tasks.configureTaskRunner",
+        "workbench.action.tasks.runTask"
+    ],
+    "cmake.showOptionsMovedNotification": false,
+    "launch": {
+        "configurations": [
+        
+        ]
+    },
+    "code-runner.defaultLanguage": "javascript",
+    "git.enableSmartCommit": true,
+    "terminal.integrated.commandsToSkipShell": [
+        "matlab.interrupt"
+    ],
+    "workbench.editor.languageDetection": false,
+    "git.confirmSync": false,
+    "git.autofetch": true,
+    "matlab.executablePath": "D:\\MATLAB\\R2023b\\bin\\matlab.exe"
+}
