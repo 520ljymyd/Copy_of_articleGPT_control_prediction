@@ -48,7 +48,7 @@ function [tau_vec, adev_vec] = allan_deviation(offset, dt, L_vec)
 
     % 确保列向量
     offset = offset(:);
-    N = length(offset);
+    %N = length(offset);
 
     % 1) 由 offset 得到瞬时频率 f(n) —— 对应式 (6)
     f = diff(offset) / dt;    % 长度 N-1

@@ -18,4 +18,3 @@ alpha_FLL = exp(-2*pi*FLL_band*T_loop);
 
 end
 
-t
