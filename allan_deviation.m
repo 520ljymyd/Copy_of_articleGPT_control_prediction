@@ -78,8 +78,8 @@ function [tau_vec, adev_vec] = allan_deviation(offset, dt, L_vec)
         allan_var = 0.5 * mean(dif.^2);  
         allan_dev = sqrt(allan_var);
 
-        tau_vec(end+1,1)  = L * dt;       
-        adev_vec(end+1,1) = allan_dev;   
+        tau_vec(end+1,1)  = L * dt;       %#ok<AGROW>
+        adev_vec(end+1,1) = allan_dev;    %#ok<AGROW>
     end
 
 end
