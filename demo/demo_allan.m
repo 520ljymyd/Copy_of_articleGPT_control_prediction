@@ -1,6 +1,6 @@
 %% 从 offset 历史计算 Allan 偏差，并与理论曲线对比
 
-offset_hist = history_offset_true(2,:);     % 这里填入 offset 序列 (秒)，1xN 或 Nx1
+% offset_hist = history_offset_true(2,:);     % 这里填入 offset 序列 (秒)，1xN 或 Nx1
 
 N = numel(offset_hist);
 
@@ -13,7 +13,8 @@ m_vec  = unique(round(logspace(0, log10(m_max), 20)));
 
 % 2) 计算理论自由运行 Allan 偏差曲线进行对比
 
-
+% q1 = 1e-3;
+% q2 = 1e-9;
 
 allan_free_running = sqrt(q1 ./ tau_emp + q2 .* tau_emp / 3);  % 对应论文式 (7) 的 σ_a(τ)
 

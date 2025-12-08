@@ -8,7 +8,7 @@ K       = 2;                  % 多项式阶数
 dt      = 0.02;               % 时间步长 (s)
 psi     = N * (N-1) / 2;      % 链路条数
 phi     = (K+1) * psi;        % 所有 beta 的维数
-T_end   = 400;                % 仿真总时间 (s)
+T_end   = 200;                % 仿真总时间 (s)
 T_seq   = 0:dt:T_end;         % 时间轴
 Nsteps  = length(T_seq);      % 仿真步数
 c       = 299792458;          % 光速 (m/s)
@@ -26,12 +26,12 @@ H_max    = 2;                 % 计数器大小（简化）
 % q1 = 1e-12;                 % WFM
 % q2 = 1e-16;                 % RWFM
 
-q1 = 1e-10;                    % WFM
-q2 = 1.44e-18;                %  RWFM
+q1 = 1e-8;                    % WFM
+q2 = 1.44e-10;                %  RWFM
 
 % ---- 时钟初始范围 ----
 offset_min = -1e-3; offset_max = 1e-3;
-skew_min   =  1e-9; skew_max   = 1e-8;
+skew_min   =  1e-5; skew_max   = 1e-4;
 
 %% ====== 初始轨迹（相对坐标） ======
 p_idx = 10;
@@ -101,7 +101,7 @@ Lambda_prev = [ zeros(phi,1);
                 mu_omega_prev ];               % 控制向量
 
 % ====== 延迟缓冲区：实现 n → n+2 延迟控制 ======
-delay_steps = 1;
+delay_steps = 2;
 est_buffer = cell(delay_steps + 1, 1);         % FIFO 缓冲区
 
 %% ================== 6. 主循环 ==================
@@ -211,13 +211,13 @@ for k = 1:Nsteps
             k_p_omega = 1;
             mu_omega_raw = k_p_omega * omega_target;
 
-            for i = 1:N-1
-                if abs(mu_omega_raw(i)) > omega_th
-                    mu_omega_k(i) = sign(mu_omega_raw(i)) * omega_th;
-                else
-                    mu_omega_k(i) = mu_omega_raw(i);
-                end
-            end
+            % for i = 1:N-1
+            %     if abs(mu_omega_raw(i)) > omega_th
+            %         mu_omega_k(i) = sign(mu_omega_raw(i)) * omega_th;
+            %     else
+            %         mu_omega_k(i) = mu_omega_raw(i);
+            %     end
+            % end
         end
     end
 
@@ -298,7 +298,7 @@ tiledlayout(2,1,'TileSpacing','compact','Padding','compact');
 
 % offset 对比
 nexttile;
-plot(T_seq, offset_true_node, 'r', 'LineWidth', 1.5); hold on;
+plot(T_seq, offset_true_node, 'r', 'LineWidth', 1.3); hold on;
 plot(T_seq, offset_est_node,  'g', 'LineWidth', 1.3);
 grid on;
 xlabel('时间 (s)'); ylabel('offset (s)');
