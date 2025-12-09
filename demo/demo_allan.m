@@ -1,6 +1,6 @@
 %% 从 offset 历史计算 Allan 偏差，并与理论曲线对比
 
-% offset_hist = history_offset_true(2,:);     % 这里填入 offset 序列 (秒)，1xN 或 Nx1
+offset_hist = history_offset_true(2,:);     % 这里填入 offset 序列 (秒)，1xN 或 Nx1
 
 N = numel(offset_hist);
 

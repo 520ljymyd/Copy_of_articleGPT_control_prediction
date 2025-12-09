@@ -1,4 +1,4 @@
-% classical MDS positionig error
+%% classical MDS positionig error
 clear;clc;close all;
 
 N=10;             % node

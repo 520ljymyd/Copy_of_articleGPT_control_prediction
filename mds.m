@@ -1,3 +1,4 @@
+%%  Classical Multidimensional Scaling (MDS)
 function X = mds(D, out_dim)
 % classical MDS
 % 输入：
@@ -12,7 +13,7 @@ function X = mds(D, out_dim)
 
     N = size(D,1);
 
-    % ---- 1. 距离矩阵对称化并置 0 对角 ----
+    % ---- 1. 距离矩阵对称化并置 0 对角 , classical-MDS必须满足对称矩阵 ----
     D = 0.5*(D + D');
     D(1:N+1:end) = 0;
 
@@ -37,7 +38,7 @@ function X = mds(D, out_dim)
     lambda_sel = lambda_sorted(1:use_dim);
     Vsel       = V(:, 1:use_dim);
 
-    % ---- 5. 坐标恢复（参考代码完全一致）----
+    % ---- 5. 坐标恢复----
     Y = Vsel * diag(sqrt(lambda_sel));    % N x dim
 
     % ---- 6. 输出格式：dim x N ----

@@ -1,3 +1,5 @@
+% 计算基于 MDS 的定位的 RAMSE 误差指标
+
 function [pos_est_hist, RAMSE_pos_history] = mds_localization_RAMSE( ...
         history_dij_est, pos_hist, ref_idx)
 
