@@ -25,8 +25,8 @@ H_max    = 2;                 % 计数器大小（简化）
 % q1 = 1e-12;                 % WFM
 % q2 = 1e-16;                 % RWFM
 
-q1 = 1e-18;                    % WFM
-q2 = 1.44e-28;                %  RWFM
+q1 = 1e-12;                    % WFM
+q2 = 1.44e-14;                %  RWFM
 
 % ---- 时钟初始范围 ----
 offset_min = -1e-3; offset_max = 1e-3;
@@ -210,13 +210,13 @@ for k = 1:Nsteps
             k_p_omega = 1;
             mu_omega_raw = k_p_omega * omega_target;
 
-            % for i = 1:N-1
-            %     if abs(mu_omega_raw(i)) > omega_th
-            %         mu_omega_k(i) = sign(mu_omega_raw(i)) * omega_th;
-            %     else
-            %         mu_omega_k(i) = mu_omega_raw(i);
-            %     end
-            % end
+            for i = 1:N-1
+                if abs(mu_omega_raw(i)) > omega_th
+                    mu_omega_k(i) = sign(mu_omega_raw(i)) * omega_th;
+                else
+                    mu_omega_k(i) = mu_omega_raw(i);
+                end
+            end
         end
     end
 
