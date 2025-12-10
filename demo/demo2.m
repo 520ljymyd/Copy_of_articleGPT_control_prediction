@@ -25,8 +25,8 @@ H_max    = 2;                 % 计数器大小（简化）
 % q1 = 1e-12;                 % WFM
 % q2 = 1e-16;                 % RWFM
 
-q1 = 1e-12;                    % WFM
-q2 = 1.44e-14;                %  RWFM
+q1 = 1e-7;                    % WFM
+q2 = 1.44e-17;                %  RWFM
 
 % ---- 时钟初始范围 ----
 offset_min = -1e-3; offset_max = 1e-3;

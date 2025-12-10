@@ -12,36 +12,46 @@ T_end   = 200;                % 仿真总时间 (s)
 T_seq   = 0:dt:T_end;         % 时间轴
 Nsteps  = length(T_seq);      % 仿真步数
 c       = 299792458;          % 光速 (m/s)
-
 sigma_t = 1e-7;               % 伪距测量噪声 (秒)
 sigma_a = 0.0;                % 速度随机游走 目前不考虑
-
 % ---- 控制相关参数 ----
-delta_th = 5e-7;              % offset 操作阈值
-omega_th = 3.2e-12;           % skew  操作限幅 (Eq.34 对应)
-H_max    = 2;                 % 计数器大小（简化）
+param = init_param();
+delta_th = param.delta_th;    % offset 控制阈值
+omega_th = param.omega_th;    % skew 控制阈值
+H_max    = param.H_max;       % 相位跳变最大值
+
+% ----计算环路时间常数----
+[param.tau1_PLL, param.tau2_PLL] = calcLoopCoef(0.35, param.zeta, param.k_PLL);
+[param.tau1_FLL, param.tau2_FLL] = calcLoopCoef(0.06,  param.zeta, param.k_FLL);
+
 
 % ---- 时钟噪声参数）----
 % q1 = 1e-12;                 % WFM
 % q2 = 1e-16;                 % RWFM
 
-q1 = 1e-12;                    % WFM
-q2 = 1.44e-14;                %  RWFM
+q1 = 1e-14;                   % WFM
+q2 = 1.44e-16;                %  RWFM
 
 % ---- 时钟初始范围 ----
-offset_min = -1e-3; offset_max = 1e-3;
+offset_min = -1e-7; offset_max = 1e-7;
 skew_min   =  1e-9; skew_max   = 1e-8;
 
-%% ====== 初始轨迹（相对坐标） ======
+% ----   标志位   ----
+measureFLAG = true;    % 是否进行伪距测量 n
+exchangeFLAG = true;   % 是否进行链路交换 n+1 估计出n轮状态，预测n+2轮状态
+steeringFLAG = true;   % 是否进行时钟控制 n+2 控制量作用于 n+2 轮时钟
+
+
+% ----初始轨迹（相对坐标  ----
 p_idx = 1;
 v_idx = 1;
 position_init_rel = [ 8958,  -1374,  -7,  1935,   38;
-                     -13326,  2890,   3,   699, 1783;
-                      9683, 11993, 170,  4248, 3712] * p_idx;
+    -13326,  2890,   3,   699, 1783;
+    9683, 11993, 170,  4248, 3712] * p_idx;
 
 velocity_init_rel = [181,  -61,  -55,   37,  -71;
-                     -70,  163,   84,  139,   94;
-                      47,   17,  122,   75,   62] * v_idx;
+    -70,  163,   84,  139,   94;
+    47,   17,  122,   75,   62] * v_idx;
 
 accelerate_init_rel = zeros(3, N);
 
@@ -96,12 +106,20 @@ mu_delta_prev = zeros(N-1,1);                  % 上一轮 offset 控制
 mu_omega_prev = zeros(N-1,1);                  % 上一轮 skew   控制
 
 Lambda_prev = [ zeros(phi,1);
-                mu_delta_prev;
-                mu_omega_prev ];               % 控制向量
+    mu_delta_prev;
+    mu_omega_prev ];               % 控制向量
 
 % ====== 延迟缓冲区：实现 n → n+2 延迟控制 ======
 delay_steps = 2;
-est_buffer = cell(delay_steps + 1, 1);         % FIFO 缓冲区
+est_buffer = cell(delay_steps, 1);         % FIFO 缓冲区
+
+% ==== PLL + FLL 环路内部状态初始化 ====
+state = struct();  
+for j = 2:N    % 节点 2..N（节点1是参考，不需要控制）
+    state(j).s0 = 0;
+    state(j).s1 = 0;
+end
+
 
 %% ================== 6. 主循环 ==================
 tic;
@@ -109,7 +127,7 @@ M = 200;   % 多项式窗口长度（步数）
 
 for k = 1:Nsteps
     T_n = T_seq(k);
-
+    
     %% --- (1) 时钟真值演化（物理 + 控制） ---
     if k > 1
         [offset_true_k, skew_true_k] = offset_skew_update_prediction_control( ...
@@ -118,133 +136,150 @@ for k = 1:Nsteps
         history_offset_true(:,k) = offset_true_k(:);
         history_skew_true(:,k)   = skew_true_k(:);
     end
-
+    
     %% --- (2) 用真实轨迹 + 时钟真值生成伪距（STWR 模型） ---
     pos_hist_k = pos_hist(:,:,k);
     vel_hist_k = vel_hist(:,:,k);
-
+    
     [rhomat_k, dij_true_mat] = pseudorange_STWR( ...
         N, position_init_rel, velocity_init_rel, ...
         offset_true_k, skew_true_k, T_n, c, sigma_t);
-
+    
     history_dij_true(:,:,k) = dij_true_mat;
-
+    
     % 转成秒：z = rho / c
     Zk = rhomat_k / c;
     if any(isnan(Zk))
         error("Zk 出现 NaN at step %d", k);
     end
-
+    
     %% --- (3) KF 预测 ---
     [Xkk_1, Hkk_1] = kf_predict(L, Q, Xk_1, Hk_1, B, Lambda_prev);
-
+    
     % 当前时刻的观测矩阵（对应 Zk）
     Omega_n = Omega_mat_k(N, K, T_n, Zk);
     if any(isnan(Omega_n))
         error("Omega_n 出现 NaN at step %d", k);
     end
-
+    
     T_nmat = T_mat_k(N);
     if any(isnan(T_nmat))
         error("T_nmat 出现 NaN at step %d", k);
     end
-
+    
     C_n = [Omega_n, T_nmat];
     if any(isnan(C_n))
         error("C_n 出现 NaN at step %d", k);
     end
-
+    
     %% --- (4) KF 更新 ---
     [Xk, Hk, ~] = kf_update(Xkk_1, Hkk_1, R, Zk, C_n);
-
+    
     % 多项式窗口重置（避免长时间拟合导致 β 发散）
     if k > 2 && mod(k-1, M) == 0
         sigma_beta0 = 1e-8;  % 你可以继续调
         [Xk, Hk] = reset_beta_state(Xk, Hk, phi, sigma_beta0);
     end
-
+    
     Xk_1 = Xk;
     Hk_1 = Hk;
-
+    
     %% --- (5) 提取 δ、ω 估计，并存历史 ---
     [delta_est_k, omega_est_k, history_offset_est, history_skew_est] = ...
         store_clock_est(N, Xk, phi, k, history_offset_est, history_skew_est);
-
+    
     %% --- (6) 把当前估计存入延迟缓冲区 (对应时刻 n 的估计) ---
     current_est.offset = delta_est_k;   % N×1
     current_est.skew   = omega_est_k;   % N×1
-
+    
     % FIFO 左移
     est_buffer(1:end-1) = est_buffer(2:end);
     est_buffer{end} = current_est;
-
+    
     %% --- (7) 时钟控制部分：无预测 + 两步延迟 (n → n+2) ---
     mu_delta_k = zeros(N-1,1);
     mu_omega_k = zeros(N-1,1);
-
+    
     % 只有当缓冲区已经“装满”足够多步数后，才使用延迟控制
     if k > delay_steps + 0
         delayed = est_buffer{1};    % 两步之前的估计
-
+        
         if ~isempty(delayed)
             % 节点2..N的误差
             delta_base = delayed.offset(2:N);
             omega_base = delayed.skew(2:N);
-
+            
             % ======= 无预测控制：直接使用两步前的误差 =======
             delta_target = delta_base;
             omega_target = omega_base;
             % ===============================================
-
+            
             % --- offset 控制：阈值 + 相位跳变 (式(32)) ---
             for i = 1:N-1
                 if abs(delta_target(i)) > delta_th
                     mu_delta_k(i) = delta_target(i) * H_max / (2*pi);
-                    % 或者你可以先用调试版：mu_delta_k(i) = delta_target(i);
                 else
                     mu_delta_k(i) = 0;
                 end
             end
-
+            
             % --- skew 控制：P 控制 + 限幅 (式(34) 对应) ---
-            k_p_omega = 1;
-            mu_omega_raw = k_p_omega * omega_target;
+            % k_p_omega = 1;
+            % mu_omega_raw = k_p_omega * omega_target;
+            
 
-            for i = 1:N-1
-                if abs(mu_omega_raw(i)) > omega_th
-                    mu_omega_k(i) = sign(mu_omega_raw(i)) * omega_th;
-                else
-                    mu_omega_k(i) = mu_omega_raw(i);
-                end
-            end
+
+            % for i = 1:N-1
+            %     if abs(mu_omega_raw(i)) > omega_th
+            %         mu_omega_k(i) = sign(mu_omega_raw(i)) * omega_th;
+            %     else
+            %         mu_omega_k(i) = mu_omega_raw(i);
+            %     end
+            % end
+            
+
+        for j = 2:N
+            delta_hat_j = delta_base(j-1);
+            omega_hat_j = omega_base(j-1);
+
+            % --- 使用 PLL+FLL 控制器 ---
+            [mu_omega_val, state(j)] = ...
+                mu_omega_update(delta_hat_j, omega_hat_j, state(j), param);
+
+            mu_omega_k(j-1) = mu_omega_val;
+        end
+            
+            
+            
         end
     end
-
+    
     % 组装控制向量 Lambda，给下一次 KF 预测用
     Lambda_prev = [ zeros(phi,1);
-                    mu_delta_k;
-                    mu_omega_k ];
-
+        mu_delta_k;
+        mu_omega_k ];
+    
     % 保存控制量，给下一步“真实时钟演化”使用
     mu_delta_prev = mu_delta_k;
     mu_omega_prev = mu_omega_k;
-
+    
     %% --- (8) 计算时钟 RAMSE  ---
     if k >= 1
         offset_err = history_offset_est(2:N,k) - history_offset_true(2:N,k);
         offset_err = offset_err - mean(offset_err);
         RAMSE_offset_history(k) = sqrt(mean(offset_err.^2));
-
+        
         skew_err = history_skew_est(2:N,k) - history_skew_true(2:N,k);
         skew_err = skew_err - mean(skew_err);
         RAMSE_skew_history(k) = sqrt(mean(skew_err.^2));
-    
+        
     end
     %% --- (9) 用 beta_hat 估计距离 & 距离 RAMSE ---
     [history_dij_est, RAMSE_relativedij_history] = ...
         update_distance_and_RAMSE(N, K, c, T_n, Xk, k, ...
         history_dij_est, history_dij_true, RAMSE_relativedij_history);
- 
+    
+    % --- (10) 进度显示 ---
     if mod(k, 200) == 0
         fprintf("已完成 %d / %d 步\n", k, Nsteps);
     end
@@ -255,12 +290,10 @@ toc;
 [mds_pos_est_hist, RAMSE_pos_history] = ...
     mds_localization_RAMSE(history_dij_est, pos_hist, 1);
 
-
-
 %% ================== 8. 作图 ==================
 set(0,'defaultAxesFontName','Microsoft YaHei');
 
-figure('Position',[100 100 1200 820]);
+figure('Position',[100 100 1200 720]);
 tiledlayout(4,1,'TileSpacing','compact','Padding','compact');
 sgtitle('仿真结果（无预测 + 两步延迟控制）','FontSize',16,'FontWeight','bold');
 
@@ -313,10 +346,7 @@ xlabel('时间 (s)'); ylabel('skew (s/s)');
 title(sprintf('节点 %d 的 clock skew：真值 vs 估计', node_idx));
 legend('True skew', 'Estimated skew', 'Location', 'best');
 
-
-
-
-%% 从 offset 历史计算 Allan 偏差，并与理论曲线对比
+%% ================== 10. Allan 偏差计算与对比 ==================
 
 offset_hist = history_offset_true(2,:);     % 这里填入 offset 序列 (秒)，1xN 或 Nx1
 
@@ -324,7 +354,7 @@ N = numel(offset_hist);
 
 % 选取一组 m，使 tau 在 [dt, N*dt/10] 左右的 log 区间内
 m_max  = floor(N/4);                        % 确保 2*m < N
-m_vec  = unique(round(logspace(0, log10(m_max), 20)));  
+m_vec  = unique(round(logspace(0, log10(m_max), 20)));
 
 % 1) 用 offset 序列计算 Allan 偏差
 [tau_emp, adev_emp] = allan_deviation(offset_hist, dt, m_vec);
@@ -351,3 +381,4 @@ title('Clock Allan deviation: empirical vs theoretical');
 %限定 x, y 轴范围
 % xlim([1e0, 1e5]);
 % ylim([1e-16, 1e-10]);
+workspace;
