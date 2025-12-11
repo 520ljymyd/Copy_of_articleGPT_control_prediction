@@ -1,1 +1,1 @@
-for k = 1:Nsteps
+offset_min = -5e-6; offset_max = 5e-6;

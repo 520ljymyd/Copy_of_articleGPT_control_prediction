@@ -115,7 +115,10 @@ clear; clc; close all; format long;
 
 %% ================== 模型参数 ================== 
 dt      = 0.02;      % 采样时间
-Nsteps  = 5e5;       % 仿真步数
+T_end    = 1e3;
+Nsteps  = T_end/dt;       % 仿真步数
+T_seq = 0:dt:T_end;
+
 offset_init = 0.0024; 
 skew_init   = 1e-10; 
 
@@ -171,6 +174,18 @@ xlabel('\tau (sec)');
 ylabel('Allan Deviation \sigma_y(\tau)');
 legend('Simulated Free Running', 'Theoretical Prediction', 'Location', 'Best');
 title(['Clock Free Running Analysis (q1=' num2str(q1) ', q2=' num2str(q2) ')']);
+
+
+
+% nexttile;
+% plot(T_seq, offset_hist, 'r', 'LineWidth', 1.3); hold on;
+% % plot(T_seq, offset_est_node,  'g', 'LineWidth', 1.3);
+% grid on;
+% xlabel('时间 (s)'); ylabel('offset (s)');
+% title(sprintf('节点 %d 的 clock offset：真值 vs 估计', node_idx));
+% legend('True offset', 'Estimated offset', 'Location', 'best');
+
+
 
 
 

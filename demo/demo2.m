@@ -8,7 +8,7 @@ K       = 2;                  % 多项式阶数
 dt      = 0.02;               % 时间步长 (s)
 psi     = N * (N-1) / 2;      % 链路条数
 phi     = (K+1) * psi;        % 所有 beta 的维数
-T_end   = 200;                % 仿真总时间 (s)
+T_end   = 600;                % 仿真总时间 (s)
 T_seq   = 0:dt:T_end;         % 时间轴
 Nsteps  = length(T_seq);      % 仿真步数
 c       = 299792458;          % 光速 (m/s)
@@ -25,16 +25,16 @@ H_max    = 2;                 % 计数器大小（简化）
 % q1 = 1e-12;                 % WFM
 % q2 = 1e-16;                 % RWFM
 
-q1 = 1e-7;                    % WFM
-q2 = 1.44e-17;                %  RWFM
+q1 = 1e-12;                    % WFM
+q2 = 1.44e-18;                %  RWFM
 
 % ---- 时钟初始范围 ----
-offset_min = -1e-3; offset_max = 1e-3;
+offset_min = -5e-3; offset_max = 5e-3;
 skew_min   =  1e-9; skew_max   = 1e-8;
 
 %% ====== 初始轨迹（相对坐标） ======
-p_idx = 1;
-v_idx = 1;
+p_idx = 10;
+v_idx = 0.1;
 position_init_rel = [ 8958,  -1374,  -7,  1935,   38;
                      -13326,  2890,   3,   699, 1783;
                       9683, 11993, 170,  4248, 3712] * p_idx;
@@ -319,11 +319,11 @@ legend('True skew', 'Estimated skew', 'Location', 'best');
 %% 从 offset 历史计算 Allan 偏差，并与理论曲线对比
 
 offset_hist = history_offset_true(2,:);     % 这里填入 offset 序列 (秒)，1xN 或 Nx1
-
+% offset_hist = offset_hist(10099:19000);          % 转成列向量
 N = numel(offset_hist);
 
 % 选取一组 m，使 tau 在 [dt, N*dt/10] 左右的 log 区间内
-m_max  = floor(N/4);                        % 确保 2*m < N
+m_max  = floor(N);                        % 确保 2*m < N
 m_vec  = unique(round(logspace(0, log10(m_max), 20)));  
 
 % 1) 用 offset 序列计算 Allan 偏差

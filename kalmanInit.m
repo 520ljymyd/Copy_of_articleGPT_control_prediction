@@ -45,9 +45,8 @@ Zk = zeros(2*psi, 1);
 %% 初始化矩阵B
 Bmat = zeros(phi+2*N-2);
 
-% Bmat(phi+1: phi+1+N-2, phi+1:phi+1+N-2) =B_miu_delta;
-
-B_mu_omega = -1 *eye(N-1);
+B_mu_omega = -1 * eye(N-1);
 Bmat(phi+N:end ,phi+N:end) =B_mu_omega;
 
+% Bmat = -1 * Lmat;
 end
